@@ -157,7 +157,7 @@ export default function LinkSyncApp() {
   };
 
   return (
-    <div className="bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 font-sans selection:bg-zinc-300 dark:selection:bg-zinc-700 h-dvh flex flex-col items-center">
+    <div className="bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 font-sans selection:bg-zinc-300 dark:selection:bg-zinc-700 min-h-screen flex flex-col items-center">
       <ModeToggle />
       <main className="w-full max-w-2xl px-4 md:px-8 flex flex-col flex-1 overflow-hidden relative">
         {/* Header */}
@@ -173,8 +173,33 @@ export default function LinkSyncApp() {
           </p>
         </header>
 
+        {/* Input Area */}
+        <div className="mb-6 shrink-0">
+          <form
+            onSubmit={handleSubmit}
+            className="flex items-end gap-2 bg-white dark:bg-zinc-900 p-2 rounded-2xl border shadow-lg shadow-zinc-200/50 dark:shadow-black/50 ring-1 ring-zinc-900/5"
+          >
+            <Input
+              placeholder="Paste a link or type a message..."
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              className="border-0 shadow-none focus-visible:ring-0 flex-1 h-12 text-base bg-transparent p-3"
+              disabled={isLoading}
+              autoFocus
+              autoComplete="off"
+            />
+            <Button
+              type="submit"
+              disabled={!inputValue.trim() || isLoading}
+              className="h-12 w-12 rounded-xl shrink-0"
+            >
+              <Send className="h-5 w-5" />
+            </Button>
+          </form>
+        </div>
+
         {/* List of Messages */}
-        <div className="flex-1 overflow-y-auto space-y-4 pb-32 px-1 -mx-1 hide-scrollbar">
+        <div className="flex-1 overflow-y-auto space-y-4 pb-6 px-1 -mx-1 hide-scrollbar">
           {isFetchingInitial ? (
             Array.from({ length: 5 }).map((_, i) => (
               <div
@@ -218,31 +243,6 @@ export default function LinkSyncApp() {
               ) : null}
             </>
           )}
-        </div>
-
-        {/* Input Area (Fixed Bottom) */}
-        <div className="absolute bottom-4 left-0 right-0 p-4 md:px-8 bg-linear-to-t from-zinc-50 from-80% to-transparent dark:from-zinc-950 pb-safe">
-          <form
-            onSubmit={handleSubmit}
-            className="flex items-end gap-2 bg-white dark:bg-zinc-900 p-2 rounded-2xl border shadow-lg shadow-zinc-200/50 dark:shadow-black/50 ring-1 ring-zinc-900/5"
-          >
-            <Input
-              placeholder="Paste a link or type a message..."
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              className="border-0 shadow-none focus-visible:ring-0 flex-1 h-12 text-base bg-transparent p-3"
-              disabled={isLoading}
-              autoFocus
-              autoComplete="off"
-            />
-            <Button
-              type="submit"
-              disabled={!inputValue.trim() || isLoading}
-              className="h-12 w-12 rounded-xl shrink-0"
-            >
-              <Send className="h-5 w-5" />
-            </Button>
-          </form>
         </div>
       </main>
     </div>
