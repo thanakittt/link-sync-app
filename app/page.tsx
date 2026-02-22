@@ -1,16 +1,44 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Send, Link as LinkIcon } from "lucide-react";
+import {
+  Send,
+  Link as LinkIcon,
+  LogOut,
+  Loader2,
+  Users,
+  UserCircle,
+  Plus,
+  Moon,
+  Sun,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase, Message } from "@/lib/supabase";
 import { SyncCard } from "@/components/sync-card";
-import { ModeToggle } from "@/components/mode-toggle";
 import { toast } from "sonner";
+import { useTheme } from "next-themes";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useRouter } from "next/navigation";
+import {
+  type User,
+  type Session,
+  type AuthChangeEvent,
+} from "@supabase/supabase-js";
 
 export default function LinkSyncApp() {
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const { theme, setTheme } = useTheme();
   // State เก็บข้อความทั้งหมดที่ดึงมาแสดงบนหน้าจอ
   const [messages, setMessages] = useState<Message[]>([]);
   // State เก็บข้อความที่ผู้ใช้พิมพ์ในช่อง input
@@ -22,6 +50,19 @@ export default function LinkSyncApp() {
   // State เช็คว่ายังมีข้อมูลเก่าใน Database ให้ดึงอีกไหม (ถ้าดึงมาไม่ถึงโควต้าแปลว่าหมดแล้ว)
   const [hasMore, setHasMore] = useState(true);
 
+  // State เก็บรายชื่อบัญชีที่เคยล็อกอิน
+  const [savedAccounts, setSavedAccounts] = useState<any[]>([]);
+
+  // โหลดรายชื่อบัญชีเมื่อเริ่มต้น
+  useEffect(() => {
+    const loadedStr = localStorage.getItem("link-sync-accounts");
+    if (loadedStr) {
+      try {
+        setSavedAccounts(JSON.parse(loadedStr));
+      } catch (e) {}
+    }
+  }, []);
+
   // State แสดง Skeleton โหลดข้อมูลตอนเข้าเว็บครั้งแรก
   const [isFetchingInitial, setIsFetchingInitial] = useState(true);
   // State แสดง Skeleton ปุ่มโหลดระหว่างกำลังดึงข้อมูลหน้าถัดไป
@@ -29,6 +70,71 @@ export default function LinkSyncApp() {
 
   // กำหนดจำนวนข้อความที่จะแสดงต่อ 1 หน้า (สำหรับการดึงประวัติเก่า)
   const ITEMS_PER_PAGE = 25;
+
+  // ฟังก์ชันสำหรับ Sign Out
+  const handleSignOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast.error("Error signing out");
+    } else {
+      if (user?.email) {
+        const updated = savedAccounts.filter((acc) => acc.email !== user.email);
+        setSavedAccounts(updated);
+        localStorage.setItem("link-sync-accounts", JSON.stringify(updated));
+
+        if (updated.length > 0) {
+          handleSwitchAccount(updated[0]);
+        } else {
+          router.push("/login");
+        }
+      } else {
+        router.push("/login");
+      }
+    }
+  };
+
+  const handleSwitchAccount = async (account: any) => {
+    try {
+      if (account.email === user?.email) return;
+      setIsFetchingInitial(true);
+      const { error } = await supabase.auth.setSession(account.session);
+      if (error) {
+        const updated = savedAccounts.filter(
+          (acc) => acc.email !== account.email,
+        );
+        setSavedAccounts(updated);
+        localStorage.setItem("link-sync-accounts", JSON.stringify(updated));
+        toast.error("Session expired. Please sign in again.");
+        if (updated.length === 0) {
+          router.push("/login");
+        }
+        return;
+      }
+      toast.success(`Switched to ${account.email}`);
+      window.location.reload();
+    } catch (err) {
+      toast.error("Failed to switch account");
+    }
+  };
+
+  const updateSavedAccount = (session: Session) => {
+    if (!session.user.email) return;
+    const email = session.user.email;
+    const accountData = {
+      email,
+      session: {
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+      },
+    };
+
+    setSavedAccounts((prev) => {
+      const existing = prev.filter((acc) => acc.email !== email);
+      const updated = [accountData, ...existing];
+      localStorage.setItem("link-sync-accounts", JSON.stringify(updated));
+      return updated;
+    });
+  };
 
   // ฟังก์ชันหลักสำหรับดึงข้อมูลข้อความจาก Supabase
   const fetchMessages = async (pageNumber: number, isInitial = false) => {
@@ -52,12 +158,13 @@ export default function LinkSyncApp() {
       console.error("Error fetching messages:", error);
     } else {
       if (data) {
+        const messagesData = data as Message[];
         if (isInitial) {
           // ถ้าเป็นการดึงครั้งแรก ให้แทนที่ state เดิมด้วยข้อมูลใหม่ทั้งหมด
-          setMessages(data);
+          setMessages(messagesData);
         } else {
           // ถ้าเป็นการโหลดหน้าถัดไป ให้เอาข้อมูลใหม่มาต่อท้าย (เพราะเรียงจากใหม่สุดอยู่แล้ว)
-          setMessages((prev) => [...prev, ...data]);
+          setMessages((prev) => [...prev, ...messagesData]);
         }
         // ตรวจสอบว่าจำนวนที่ดึงมาเท่ากับโควต้าไหม ถ้าใช่แปลว่าอาจจะมีข้อมูลหน้าถัดไปอีก
         setHasMore(data.length === ITEMS_PER_PAGE);
@@ -69,10 +176,34 @@ export default function LinkSyncApp() {
   };
 
   // ทำตอน component mount เพื่อดึงข้อมูลข้อความเริ่มต้น
-  // Fetch initial messages
+  // Fetch initial messages and session
   useEffect(() => {
-    fetchMessages(0, true);
-  }, []);
+    const init = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        updateSavedAccount(session);
+        fetchMessages(0, true);
+      } else {
+        router.push("/login");
+      }
+    };
+    init();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(
+      (event: AuthChangeEvent, session: Session | null) => {
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          updateSavedAccount(session);
+        }
+      },
+    );
+    return () => subscription.unsubscribe();
+  }, [router]);
 
   // ฟังก์ชันสำหรับจัดการเมื่อผู้ใช้กดปุ่ม Load More
   const handleLoadMore = () => {
@@ -84,6 +215,8 @@ export default function LinkSyncApp() {
   // สมัครรับการแจ้งเตือนจาก Supabase (Realtime)
   // Subscribe to changes
   useEffect(() => {
+    if (!user) return; // Only subscribe if logged in
+
     const channel = supabase
       .channel("messages_changes")
       // คอยฟัง Event ประเภท INSERT (เพิ่มข้อมูลใหม่) บนตาราง messages ช่องทาง public
@@ -93,6 +226,7 @@ export default function LinkSyncApp() {
           event: "INSERT",
           schema: "public",
           table: "messages",
+          filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
           const newMessage = payload.new as Message;
@@ -111,13 +245,13 @@ export default function LinkSyncApp() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [user]);
 
   // ฟังก์ชันตอนกด Submit Form ส่งข้อความ/ลิงก์
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     // ถ้าพิมพ์แต่เว้นวรรครัวๆ ไม่ต้องทำอะไร
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim() || !user) return;
 
     setIsLoading(true); // ปรับ state ของ form เป็น Loading
     const content = inputValue.trim();
@@ -137,6 +271,7 @@ export default function LinkSyncApp() {
     const newMessage = {
       content: finalContent,
       type: isUrl ? ("url" as const) : ("text" as const),
+      user_id: user.id,
     };
 
     // ส่งข้อความไป Insert ผ่าน SDK ของ Supabase ทันที
@@ -156,17 +291,104 @@ export default function LinkSyncApp() {
     setIsLoading(false);
   };
 
+  if (!user) {
+    return (
+      <div className="bg-zinc-50 dark:bg-zinc-950 min-h-screen flex flex-col items-center justify-center p-4">
+        <Loader2 className="h-8 w-8 animate-spin text-zinc-500" />
+      </div>
+    );
+  }
+
   return (
     <div className="bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 font-sans selection:bg-zinc-300 dark:selection:bg-zinc-700 min-h-screen flex flex-col items-center">
-      <ModeToggle />
       <main className="w-full max-w-2xl px-4 md:px-8 flex flex-col flex-1 overflow-hidden relative">
         {/* Header */}
         <header className="py-6 flex flex-col gap-2 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 p-2 rounded-xl">
-              <LinkIcon className="h-6 w-6" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 p-2 rounded-xl">
+                <LinkIcon className="h-6 w-6" />
+              </div>
+              <h1 className="text-2xl font-bold tracking-tight">Link Sync</h1>
             </div>
-            <h1 className="text-2xl font-bold tracking-tight">Link Sync</h1>
+            {user && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="relative h-10 w-10 rounded-full"
+                  >
+                    <Avatar className="h-10 w-10 border border-zinc-200 dark:border-zinc-800">
+                      {/* <AvatarImage
+                        src={`https://avatar.vercel.sh/${user.email}`}
+                        alt={user.email || ""}
+                      /> */}
+                      <AvatarFallback>
+                        {user.email?.slice(0, 2).toUpperCase()}
+                        {/* <UserCircle className="h-6 w-6 text-zinc-500" /> */}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">
+                        Account
+                      </p>
+                      <p className="text-xs leading-none text-zinc-500">
+                        {user.email}
+                      </p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="font-normal text-xs text-zinc-500">
+                    Saved Accounts
+                  </DropdownMenuLabel>
+                  {savedAccounts
+                    .filter((acc) => acc.email !== user.email)
+                    .map((acc) => (
+                      <DropdownMenuItem
+                        key={acc.email}
+                        onClick={() => handleSwitchAccount(acc)}
+                        className="cursor-pointer"
+                      >
+                        <UserCircle className="mr-2 h-4 w-4" />
+                        <span className="truncate">{acc.email}</span>
+                      </DropdownMenuItem>
+                    ))}
+                  <DropdownMenuItem
+                    onClick={() => router.push("/login?add=true")}
+                    className="cursor-pointer"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    <span>Add another account</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setTheme(theme === "dark" ? "light" : "dark");
+                    }}
+                    className="cursor-pointer"
+                  >
+                    <div className="mr-2 relative flex h-4 w-4 items-center justify-center">
+                      <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                      <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                    </div>
+                    <span>Toggle Theme</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={handleSignOut}
+                    className="cursor-pointer text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400"
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Log out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
           <p className="text-zinc-500 text-sm">
             Send text and URLs seamlessly across all your devices.
@@ -221,7 +443,7 @@ export default function LinkSyncApp() {
               </div>
             ))
           ) : messages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-zinc-400 gap-3">
+            <div className="h-full flex flex-col items-center justify-center text-zinc-400 gap-3 pt-10">
               <LinkIcon className="h-12 w-12 opacity-20" />
               <p>No history yet. Send something!</p>
             </div>
