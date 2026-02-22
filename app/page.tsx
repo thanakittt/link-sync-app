@@ -9,14 +9,16 @@ import {
   Users,
   UserCircle,
   Plus,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase, Message } from "@/lib/supabase";
 import { SyncCard } from "@/components/sync-card";
-import { ModeToggle } from "@/components/mode-toggle";
 import { toast } from "sonner";
+import { useTheme } from "next-themes";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,6 +38,7 @@ import {
 export default function LinkSyncApp() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
+  const { theme, setTheme } = useTheme();
   // State เก็บข้อความทั้งหมดที่ดึงมาแสดงบนหน้าจอ
   const [messages, setMessages] = useState<Message[]>([]);
   // State เก็บข้อความที่ผู้ใช้พิมพ์ในช่อง input
@@ -298,7 +301,6 @@ export default function LinkSyncApp() {
 
   return (
     <div className="bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 font-sans selection:bg-zinc-300 dark:selection:bg-zinc-700 min-h-screen flex flex-col items-center">
-      <ModeToggle />
       <main className="w-full max-w-2xl px-4 md:px-8 flex flex-col flex-1 overflow-hidden relative">
         {/* Header */}
         <header className="py-6 flex flex-col gap-2 shrink-0">
@@ -361,6 +363,20 @@ export default function LinkSyncApp() {
                   >
                     <Plus className="mr-2 h-4 w-4" />
                     <span>Add another account</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setTheme(theme === "dark" ? "light" : "dark");
+                    }}
+                    className="cursor-pointer"
+                  >
+                    <div className="mr-2 relative flex h-4 w-4 items-center justify-center">
+                      <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                      <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                    </div>
+                    <span>Toggle Theme</span>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
