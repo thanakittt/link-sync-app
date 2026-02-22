@@ -70,12 +70,13 @@ export default function LinkSyncApp() {
       console.error("Error fetching messages:", error);
     } else {
       if (data) {
+        const messagesData = data as Message[];
         if (isInitial) {
           // ถ้าเป็นการดึงครั้งแรก ให้แทนที่ state เดิมด้วยข้อมูลใหม่ทั้งหมด
-          setMessages(data);
+          setMessages(messagesData);
         } else {
           // ถ้าเป็นการโหลดหน้าถัดไป ให้เอาข้อมูลใหม่มาต่อท้าย (เพราะเรียงจากใหม่สุดอยู่แล้ว)
-          setMessages((prev) => [...prev, ...data]);
+          setMessages((prev) => [...prev, ...messagesData]);
         }
         // ตรวจสอบว่าจำนวนที่ดึงมาเท่ากับโควต้าไหม ถ้าใช่แปลว่าอาจจะมีข้อมูลหน้าถัดไปอีก
         setHasMore(data.length === ITEMS_PER_PAGE);
