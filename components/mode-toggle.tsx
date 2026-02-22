@@ -13,7 +13,7 @@ export function ModeToggle() {
     <Button
       variant="outline"
       size="icon"
-      className="absolute top-4 right-4 md:top-8 md:right-8 rounded-full z-50 shadow-sm"
+      className="absolute bottom-4 right-4 md:bottom-8 md:right-8 rounded-full z-50 shadow-sm"
       onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
     >
       <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
