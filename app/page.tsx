@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Send, Link as LinkIcon } from "lucide-react";
+import { Send, Link as LinkIcon, LogOut, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -9,8 +9,16 @@ import { supabase, Message } from "@/lib/supabase";
 import { SyncCard } from "@/components/sync-card";
 import { ModeToggle } from "@/components/mode-toggle";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import {
+  type User,
+  type Session,
+  type AuthChangeEvent,
+} from "@supabase/supabase-js";
 
 export default function LinkSyncApp() {
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
   // State เก็บข้อความทั้งหมดที่ดึงมาแสดงบนหน้าจอ
   const [messages, setMessages] = useState<Message[]>([]);
   // State เก็บข้อความที่ผู้ใช้พิมพ์ในช่อง input
@@ -29,6 +37,16 @@ export default function LinkSyncApp() {
 
   // กำหนดจำนวนข้อความที่จะแสดงต่อ 1 หน้า (สำหรับการดึงประวัติเก่า)
   const ITEMS_PER_PAGE = 25;
+
+  // ฟังก์ชันสำหรับ Sign Out
+  const handleSignOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast.error("Error signing out");
+    } else {
+      router.push("/login");
+    }
+  };
 
   // ฟังก์ชันหลักสำหรับดึงข้อมูลข้อความจาก Supabase
   const fetchMessages = async (pageNumber: number, isInitial = false) => {
@@ -69,10 +87,30 @@ export default function LinkSyncApp() {
   };
 
   // ทำตอน component mount เพื่อดึงข้อมูลข้อความเริ่มต้น
-  // Fetch initial messages
+  // Fetch initial messages and session
   useEffect(() => {
-    fetchMessages(0, true);
-  }, []);
+    const init = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchMessages(0, true);
+      } else {
+        router.push("/login");
+      }
+    };
+    init();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(
+      (event: AuthChangeEvent, session: Session | null) => {
+        setUser(session?.user ?? null);
+      },
+    );
+    return () => subscription.unsubscribe();
+  }, [router]);
 
   // ฟังก์ชันสำหรับจัดการเมื่อผู้ใช้กดปุ่ม Load More
   const handleLoadMore = () => {
@@ -84,6 +122,8 @@ export default function LinkSyncApp() {
   // สมัครรับการแจ้งเตือนจาก Supabase (Realtime)
   // Subscribe to changes
   useEffect(() => {
+    if (!user) return; // Only subscribe if logged in
+
     const channel = supabase
       .channel("messages_changes")
       // คอยฟัง Event ประเภท INSERT (เพิ่มข้อมูลใหม่) บนตาราง messages ช่องทาง public
@@ -93,6 +133,7 @@ export default function LinkSyncApp() {
           event: "INSERT",
           schema: "public",
           table: "messages",
+          filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
           const newMessage = payload.new as Message;
@@ -111,13 +152,13 @@ export default function LinkSyncApp() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [user]);
 
   // ฟังก์ชันตอนกด Submit Form ส่งข้อความ/ลิงก์
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     // ถ้าพิมพ์แต่เว้นวรรครัวๆ ไม่ต้องทำอะไร
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim() || !user) return;
 
     setIsLoading(true); // ปรับ state ของ form เป็น Loading
     const content = inputValue.trim();
@@ -137,6 +178,7 @@ export default function LinkSyncApp() {
     const newMessage = {
       content: finalContent,
       type: isUrl ? ("url" as const) : ("text" as const),
+      user_id: user.id,
     };
 
     // ส่งข้อความไป Insert ผ่าน SDK ของ Supabase ทันที
@@ -156,17 +198,38 @@ export default function LinkSyncApp() {
     setIsLoading(false);
   };
 
+  if (!user) {
+    return (
+      <div className="bg-zinc-50 dark:bg-zinc-950 min-h-screen flex flex-col items-center justify-center p-4">
+        <Loader2 className="h-8 w-8 animate-spin text-zinc-500" />
+      </div>
+    );
+  }
+
   return (
     <div className="bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 font-sans selection:bg-zinc-300 dark:selection:bg-zinc-700 min-h-screen flex flex-col items-center">
       <ModeToggle />
       <main className="w-full max-w-2xl px-4 md:px-8 flex flex-col flex-1 overflow-hidden relative">
         {/* Header */}
         <header className="py-6 flex flex-col gap-2 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 p-2 rounded-xl">
-              <LinkIcon className="h-6 w-6" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 p-2 rounded-xl">
+                <LinkIcon className="h-6 w-6" />
+              </div>
+              <h1 className="text-2xl font-bold tracking-tight">Link Sync</h1>
             </div>
-            <h1 className="text-2xl font-bold tracking-tight">Link Sync</h1>
+            {user && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSignOut}
+                className="text-zinc-500 gap-2"
+              >
+                <LogOut className="h-4 w-4" />
+                Sign Out
+              </Button>
+            )}
           </div>
           <p className="text-zinc-500 text-sm">
             Send text and URLs seamlessly across all your devices.

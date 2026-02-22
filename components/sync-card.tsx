@@ -39,7 +39,7 @@ export function SyncCard({ message }: { message: Message }) {
                 href={message.content}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-blue-500 hover:underline break-all line-clamp-3 font-medium"
+                className="truncate w-3/4 text-blue-500 hover:underline break-all line-clamp-3 font-medium"
               >
                 {message.content}
               </a>
