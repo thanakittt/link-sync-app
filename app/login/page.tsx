@@ -53,7 +53,9 @@ function LoginContent() {
           password,
         });
         if (error) throw error;
-        toast.success("Signed up successfully. You can now log in.");
+        toast.success("Signed up successfully", {
+          description: "Please check your email to confirm your account.",
+        });
         setIsLogin(true); // Switch to login view after successful signup if email confirmation isn't strictly enforced
       }
     } catch (error: Error | unknown) {
