@@ -6,6 +6,9 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { User, Session, AuthChangeEvent } from "@supabase/supabase-js";
 
+/**
+ * ชนิดข้อมูล (Interface) สำหรับ State (สถานะต่างๆ) ของข้อความและผู้ใช้ในแอป
+ */
 export interface MessagesState {
   user: User | null;
   messages: Message[];
@@ -16,6 +19,9 @@ export interface MessagesState {
   isInitialized: boolean;
 }
 
+/**
+ * ชนิดข้อมูลสำหรับ Action ต่างๆ ที่ส่งผ่าน Context ให้ UI component เรียกใช้
+ */
 export interface MessagesActions {
   submit: (content: string) => Promise<void>;
   loadMore: () => void;
@@ -35,6 +41,12 @@ export interface MessagesContextValue {
 
 const MessagesContext = createContext<MessagesContextValue | null>(null);
 
+/**
+ * Custom Hook สำหรับการดึง MessagesContext มาใช้งานใน Component ใดๆ อย่างง่ายดาย
+ * โดยต้องถูกใช้ภายในภายใต้ `MessagesProvider` เสมอ
+ *
+ * @returns {MessagesContextValue} บริบทที่เกี่ยวกับ messages, actions, user state
+ */
 export function useMessages() {
   const context = use(MessagesContext);
   if (!context) {
@@ -43,6 +55,17 @@ export function useMessages() {
   return context;
 }
 
+/**
+ * Provider หลักสำหรับจัดการ State ครอบจักรวาล (Global State) ในเรื่องที่เกี่ยวกับลิงก์และข้อความ (Link Sync Logic)
+ *
+ * หน้าที่รับผิดชอบ:
+ * 1. ตรวจสอบและติดตาม (Subscribe) สถานะ Auth ผ่าน Supabase Session
+ * 2. โหลดรายการข้อความ (Messages) แบบ Pagination (ออฟเซตทีละ ITEMS_PER_PAGE รายการ)
+ * 3. รับฟังข้อมูลอัปเดตแบบเรียลไทม์ (Real-time updates) จาก Supabase (on 'INSERT')
+ * 4. จัดการเรื่อง Switch Account โดยเซฟ Token ไว้ที่ LocalStorage ชั่วคราว
+ *
+ * @param {React.ReactNode} children คอมโพเนนต์หรือ UI ที่จะนำ state จากที่นี่ไปใช้
+ */
 export function MessagesProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -57,6 +80,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
 
   const ITEMS_PER_PAGE = 25;
 
+  // อ่านข้อมูล Session ของ Account ที่เราเคยล็อกอินแช่ไว้ในเว็บบราวเซอร์นี้ (จาก localStorage)
   useEffect(() => {
     const loadedStr = localStorage.getItem("link-sync-accounts");
     if (loadedStr) {
@@ -66,6 +90,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // ฟังก์ชันจัดเก็บ Account ชั่วคราว (Multi-account Support เบื้องต้นใน LocalStorage)
   const updateSavedAccount = (session: Session) => {
     if (!session.user.email) return;
     const email = session.user.email;
@@ -85,6 +110,12 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  /**
+   * ดึงข้อมูลข้อความเก่าๆ (Fetch Messages) จาก Supabase Data API (PostgreSQL)
+   *
+   * @param {number} pageNumber หน้าปัจจุบันที่ต้องการดึง (เริ่มจาก 0)
+   * @param {boolean} isInitial เป็นการดึงเริ่มต้นตั้งแต่โหลดแอปเสร็จหมาดๆ หรือไม่ (ตั้งเป็น true วันที่เปิดหน้าครั้งแรก)
+   */
   const fetchMessages = async (pageNumber: number, isInitial = false) => {
     if (isInitial) setIsFetchingInitial(true);
     else setIsFetchingMore(true);
@@ -117,6 +148,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
     else setIsFetchingMore(false);
   };
 
+  // ตรวจสอบสถานะการเข้าระบบ (Authentication) กับเซิร์ฟเวอร์
   useEffect(() => {
     const init = async () => {
       const {
@@ -133,6 +165,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
     };
     init();
 
+    // คอยดักฟัง (Listener) หากมีการเปลี่ยนสถานะ เช่น User กด Log out / Switch Account แล้ว Token หมดอายุ
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(
@@ -149,6 +182,8 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!user) return;
 
+    // ระบบเชื่อมต่อ WebSockets (Realtime Channel) ดักการเพิ่มข้อมูลลงฐานข้อมูลโดยตรง
+    // ถ้าผู้ใช้ล็อกอินมือถือและคอม คอมาดจะได้ไม่ต้องรีเฟรชหน้าเอง เวลามีลิงก์ใหม่เด้งเข้ามา
     const channel = supabase
       .channel("messages_changes")
       .on(
@@ -175,12 +210,14 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user]);
 
+  // ตัวจัดการการโหลดย้อนหลัง (Load More Pagination)
   const handleLoadMore = () => {
     const nextPage = page + 1;
     setPage(nextPage);
     fetchMessages(nextPage);
   };
 
+  // จัดการการออกจากระบบ พร้อมทั้งล้างข้อมูล Account ใน LocalStorage ที่เป็นของตัวเองทิ้งด้วย
   const handleSignOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
@@ -202,6 +239,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // เอาไว้สลับบัญชี (Switch Account) กรณีที่มีข้อมูลล็อกอินหลายตัวอยู่ในเครื่อง
   const handleSwitchAccount = async (account: any) => {
     try {
       if (account.email === user?.email) return;
@@ -226,6 +264,12 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  /**
+   * บันทึกข้อความ (คำสั่งพิมพ์หรือแนบลิงก์) ลงไปบนฐานข้อมูลของ Supabase Server
+   * ผ่าน function insert() และจะนำตรวจสอบด้วยว่าค่าที่รับข้อความเป็น URL ที่ถูกต้องตามหลัก Regex หรือไม่
+   *
+   * @param {string} content ข้อมูลที่ต้องการพ่นเข้า database (ดึงจาก input form)
+   */
   const handleSubmit = async (content: string) => {
     if (!content.trim() || !user) return;
 

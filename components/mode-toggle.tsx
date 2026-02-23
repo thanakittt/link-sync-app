@@ -6,6 +6,15 @@ import { useTheme } from "next-themes";
 
 import { Button } from "@/components/ui/button";
 
+/**
+ * ปุ่มสลับโหมดหน้าจอ (สว่าง/มืด)
+ *
+ * หน้าที่:
+ * - อาศัย `useTheme()` จาก `next-themes` ในการดึงและสลับค่าธีม
+ * - แสดงปุ่มกลมๆ ที่มุมขวาล่างของหน้าจอ พร้อมภาพเคลื่อนไหว (Animation) สลับไอคอนพระอาทิตย์กับพระจันทร์
+ *
+ * @returns {JSX.Element} ปุ่มควบคุม Theme
+ */
 export function ModeToggle() {
   const { theme, setTheme } = useTheme();
 

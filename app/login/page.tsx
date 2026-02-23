@@ -9,6 +9,16 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { ModeToggle } from "@/components/mode-toggle";
 
+/**
+ * โครงร่าง (Layout) สำหรับหน้า Authentication (ทั้งในส่วนของการ SignIn และ SignUp)
+ *
+ * ใช้เป็นคอมโพเนนต์ห่อหุ้มฟอร์มเพื่อให้มีหน้าตา (UI) หรือสไตล์ที่เป็นไปในทิศทางเดียวกัน
+ * รวมถึงมีปุ่มสำหรับสลับโหมดมืด (ModeToggle) และรูปแบบต่างๆ (Theme) ที่ได้เซ็ตไว้
+ *
+ * @param {React.ReactNode} children เนื้อหาในส่วนของฟอร์ม (ฟอร์มเข้าสู่ระบบ หรือ แบบฟอร์มสมัครสมาชิก)
+ * @param {string} subtitle คำอธิบายย่อยที่จะแสดงอยู่ข้างใต้ชื่อแอปฯ Link Sync ของหน้า Auth
+ * @returns {JSX.Element}
+ */
 function AuthLayout({
   children,
   subtitle,
@@ -39,8 +49,19 @@ function AuthLayout({
   );
 }
 
+/**
+ * คอมโพเนนต์แบบฟอร์มเข้าสู่ระบบ (Sign In)
+ *
+ * หน้าที่:
+ * - รวบรวมข้อมูล Email และ Password
+ * - สื่อสารและ Request สิทธิ์กับ Supabase (supabase.auth.signInWithPassword)
+ * - เปลี่ยนหน้า (Router Push) หากทำรายการสำเร็จ
+ *
+ * @param {() => void} onSwitchToSignUp Callback function เมื่อต้องการจะเปลี่ยนไปหน้าแบบฟอร์มสมัครสมาชิก
+ */
 function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () => void }) {
   const router = useRouter();
+  // state เพื่อล็อคปุ่มกดในขณะที่กำลังรอหลังแอปฯ ติดต่อกับฐานข้อมูล
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -134,9 +155,19 @@ function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () => void }) {
   );
 }
 
+/**
+ * คอมโพเนนต์แบบฟอร์มสมัครสมาชิก (Sign Up)
+ *
+ * หน้าที่:
+ * - สร้างบัญชีใหม่ให้ผู้ใช้ โดยดึงข้อมูลจาก Email และ Password
+ * - ร้องขอกับฝั่ง Supabase Auth `signUp` หากทำรายการสำเร็จ จะมี toast โชว์เพื่อร้องให้ยืนยันตัวตนในอีเมล (ขึ้นอยู่กับการตั้งค่าจากฝั่ง Supabase)
+ *
+ * @param {() => void} onSwitchToSignIn Callback function เมื่อต้องการสลับหน้าจอกลับไปยังหน้าล็อกอิน
+ */
 function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () => void }) {
   const [isLoading, setIsLoading] = useState(false);
 
+  // ฟังก์ชันรองรับการสร้างฟอร์มผ่าน FormData โดยไม่ต้องใช้ controlled state (ประหยัดรอบการ render)
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -229,12 +260,23 @@ function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () => void }) {
   );
 }
 
+/**
+ * คอมโพเนนต์แสดงผลหน้าคัดแยกสำหรับการล็อกอินหรือสมัครสมาชิก (Login Content)
+ *
+ * ถูกนำมาห่อไว้แยกกัน เพื่อให้เข้ากันได้กับ `Suspense` เนื่องจากเรามีการใช้ `useSearchParams` เผื่อไว้
+ *
+ * หน้าที่หลัก:
+ * - ตรวจสอบ Session ขางผู้ใช้ ถ้ามี Session แล้วให้ Redirect (เด้งไปที่) หน้าแรก ("/")
+ * - สลับสถานะของมุมมอง ระหว่าง "signin" กับ "signup" ตาม state การใช้งาน
+ */
 function LoginContent() {
   const router = useRouter();
+  // ดึงค่า params ตรวจสอบเผื่อมี query ที่ส่งค่าคำสั่งให้ Add Account แทนการเข้าไปหน้า Dashboard ปกติ
   const searchParams = useSearchParams();
   const isAddingAccount = searchParams.get("add") === "true";
   const [view, setView] = useState<"signin" | "signup">("signin");
 
+  // ตรวจสอบเช็คสถานะล็อกอินทันทีเมื่อเข้ามาที่เพจ
   useEffect(() => {
     const checkSession = async () => {
       const {
@@ -254,6 +296,13 @@ function LoginContent() {
   return <SignUpForm onSwitchToSignIn={() => setView("signin")} />;
 }
 
+/**
+ * หน้าเพจล็อกอินหลัก (Client Component)
+ *
+ * มีหน้าที่ห่อหุ้ม `LoginContent` พร้อมจัดเตรียม `Suspense` fallback (UI เวลาโหลดเนื้อหาหลัก)
+ *
+ * @returns {JSX.Element} หน้าส่วนประกอบและหน้าสำหรับยืนยันตัวตน
+ */
 export default function LoginPage() {
   return (
     <Suspense

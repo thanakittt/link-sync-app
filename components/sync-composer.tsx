@@ -6,21 +6,29 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMessages } from "@/components/messages-provider";
 
+/**
+ * ส่วนประกอบโต้ตอบหลัก (Composer) สำหรับการพิมพ์และส่งข้อความ/ลิงก์
+ *
+ * ความสามารถ:
+ * - อ่านข้อมูลจาก Clipboard ทันที หากพบข้อความจะแสดงผลปุ่ม "Paste" อัตโนมัติเพื่มความรวดเร็ว
+ * - กด Enter หรือคลิกปุ่ม Send เผื่อส่งลิงก์เข้าสู่ฐานข้อมูล
+ * - ป้องกัน Memory leaks จาก Clipboard listeners
+ *
+ * @returns {JSX.Element} กล่องคอมโพสเซอร์สำหรับพิมพ์ข้อความ
+ */
 export function SyncComposer() {
   const { state, actions } = useMessages();
   const [inputValue, setInputValue] = useState("");
   const [showPasteButton, setShowPasteButton] = useState(false);
 
-  // useEffect นี้ทำหน้าที่ตรวจสอบว่าใน Clipboard มีข้อความอยู่หรือไม่
-  // เพื่อตัดสินใจว่าจะแสดงปุ่ม Paste (วางข้อความ) หรือเปล่า
+  // ฟังก์ชัน Effects ฝังตัว เช็คว่าใน Clipboard มีข้อความอยู่หรือไม่ เพื่อตัดสินใจแสดงผลปุ่มลัด Paste ให้กดวางได้รวดเร็ว
   useEffect(() => {
-    // isMounted ใช้ป้องกันการอัปเดต state หลังจากที่ Component ถูกทำลายไปแล้ว (Memory Leak)
+    // isMounted flag ใช้ป้องกันปัญหา State Updates แทร่งซ้อน (Memory Leak) หลังหน้าโหลดหน้าป๊อปอัพ Component ถูกถอดออก
     let isMounted = true;
 
     const checkClipboard = async () => {
       try {
-        // กรณีเบราว์เซอร์ไม่รองรับ Clipboard API ให้แสดงปุ่ม Paste ไปเลย (Fallback)
-        // เพื่อให้ผู้ใช้สามารถคลิกและให้เบราว์เซอร์จัดการเรื่องวางข้อความเองได้
+        // Fallback: กรณีเบราว์เซอร์ไม่รองรับ Clipboard API สมัยใหม่ ก็ให้ตีเนียนแสดงปุ่ม Paste ไปเลย
         if (!navigator.clipboard || !navigator.clipboard.readText) {
           if (isMounted) setShowPasteButton(true);
           return;

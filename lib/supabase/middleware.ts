@@ -1,6 +1,16 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+/**
+ * ฟังก์ชันสำหรับจัดการ Session ของผู้ใช้ในระดับ Middleware (ทำงานก่อนเข้าถึง Route)
+ *
+ * หน้าที่หลัก:
+ * 1. ตีความและรีเฟรชอัปเดต Cookies ของ Supabase Auth ป้องกันสิทธิ์การล็อกอินหมดอายุแบบเงียบๆ
+ * 2. ป้องกันการเข้าถึงหน้าเว็บ (Route Protection) โดยถ้าไม่ได้ล็อกอิน จะทำการ Redirect โยนกลับไปหน้า `/login` ทันที
+ *
+ * @param {NextRequest} request ข้อมูล Request ที่ส่งเข้ามา
+ * @returns {Promise<NextResponse>} Response หลังจากปรับแต่ง Cookie และ Redirect แล้ว
+ */
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -29,9 +39,9 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  // IMPORTANT: Avoid writing any logic between createServerClient and
-  // supabase.auth.getUser(). A simple mistake could make it very hard to debug
-  // issues with users being randomly logged out.
+  // สำคัญมาก: ห้ามเขียนโค้ดเพิ่มเติมหรือ logic แทรกกลาง ระหว่าง `createServerClient`
+  // และ `supabase.auth.getUser()` เด็ดขาด เนื่องจากผู้ใช้อาจเด้งหลุดจากระบบ (logout) แบบงงๆ ได้
+  // ดูเอกสารเพิ่มเติมได้ที่เว็บหลักของ Supabase SSR
 
   const {
     data: { user },
