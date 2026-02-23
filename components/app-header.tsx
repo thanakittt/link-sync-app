@@ -22,6 +22,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
+/**
+ * คอมโพเนนต์ส่วนหัวของแอปพลิเคชัน (App Header)
+ *
+ * หน้าที่และความรับผิดชอบ:
+ * - แสดงโลโก้แอปพลิเคชัน
+ * - จัดการ User Menu (ข้อมูลผู้ใช้ / ปุ่มล็อกเอาท์ / สลับบัญชีแบบ Dropdown)
+ * - มีปุ่มสำหรับสลับโหมดการดูให้สบายตา (Theme Switcher / Dark Mode Toggle)
+ *
+ * @returns {JSX.Element} ส่วนประกอบของ Header
+ */
 export function AppHeader() {
   const { state, actions, meta } = useMessages();
   const { theme, setTheme } = useTheme();
@@ -37,6 +47,8 @@ export function AppHeader() {
           </div>
           <h1 className="text-2xl font-bold tracking-tight">Link Sync</h1>
         </div>
+
+        {/* เช็คสถานะก่อน ถ้าเข้าสู่ระบบแล้ว (user มีข้อมูล) ถึงให้แสดงปุ่มเมนู Dropdown */}
         {user && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

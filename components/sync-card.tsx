@@ -8,6 +8,18 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Message } from "@/lib/supabase";
 import { toast } from "sonner";
 
+/**
+ * คอมโพเนนต์การ์ดแสดงผลข้อความ 1 ชิ้น (Sync Card)
+ *
+ * ถูกนำไปใช้เรียงรายอยู่ใน `MessageTimeline` เพื่อแสดงผลทั้งแบบ ข้อความ (Text) และ ลิงก์ (URL)
+ *
+ * ความสามารถหลัก:
+ * - ตัวตรวจจับประเภท (Type detector) หากเป็นลิงก์ จะแสดงปุ่ม "เปิดลิงก์" ขึ้นมาให้คลิก
+ * - มีปุ่มคัดลอกลง Clipboard ที่มีสถานะชี้บอกความสำเร็จให้ผู้ใช้รับรู้ (Visual Feedback)
+ *
+ * @param {Message} message ออบเจกต์เนื้อหาประเภทข้อความจากฐานข้อมูล
+ * @returns {JSX.Element} การ์ดข้อความ
+ */
 export function SyncCard({ message }: { message: Message }) {
   // State ป้องกันความสับสนตอนกด Copy แจ้งให้รู้ว่าคัดลอกสำเร็จแล้ว
   const [copied, setCopied] = useState(false);
