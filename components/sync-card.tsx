@@ -55,6 +55,7 @@ export function SyncCard({ message }: { message: Message }) {
               size="icon"
               onClick={handleCopy}
               title="Copy to clipboard"
+              aria-label="Copy to clipboard"
               className="h-8 w-8"
             >
               {copied ? (
@@ -69,6 +70,7 @@ export function SyncCard({ message }: { message: Message }) {
                 size="icon"
                 onClick={handleOpen}
                 title="Open URL"
+                aria-label="Open URL"
                 className="h-8 w-8"
               >
                 <ExternalLink className="h-4 w-4" />

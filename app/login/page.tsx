@@ -15,8 +15,6 @@ function LoginContent() {
   const isAddingAccount = searchParams.get("add") === "true";
   const [isLogin, setIsLogin] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
 
   useEffect(() => {
     const checkSession = async () => {
@@ -31,8 +29,12 @@ function LoginContent() {
     checkSession();
   }, [router, isAddingAccount]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+
     if (!email || !password) return;
 
     setIsLoading(true);
@@ -92,28 +94,36 @@ function LoginContent() {
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium mb-1.5 block text-zinc-700 dark:text-zinc-300">
+                <label
+                  htmlFor="email"
+                  className="text-sm font-medium mb-1.5 block text-zinc-700 dark:text-zinc-300"
+                >
                   Email
                 </label>
                 <Input
+                  id="email"
                   type="email"
+                  name="email"
+                  autoComplete="email"
                   placeholder="you@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
                   disabled={isLoading}
                   required
                   className="bg-zinc-50 dark:bg-zinc-950 h-11"
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block text-zinc-700 dark:text-zinc-300">
+                <label
+                  htmlFor="password"
+                  className="text-sm font-medium mb-1.5 block text-zinc-700 dark:text-zinc-300"
+                >
                   Password
                 </label>
                 <Input
+                  id="password"
                   type="password"
+                  name="password"
+                  autoComplete="current-password"
                   placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
                   disabled={isLoading}
                   required
                   className="bg-zinc-50 dark:bg-zinc-950 h-11"
@@ -123,8 +133,8 @@ function LoginContent() {
 
             <Button
               type="submit"
-              disabled={isLoading || !email || !password}
-              className="w-full h-11 mt-2 text-base font-medium rounded-xl transition-all active:scale-[0.98]"
+              disabled={isLoading}
+              className="w-full h-11 mt-2 text-base font-medium rounded-xl transition active:scale-[0.98]"
             >
               {isLoading ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
@@ -138,7 +148,8 @@ function LoginContent() {
 
           <div className="mt-6 text-center text-sm">
             <button
-              onClick={() => setIsLogin(!isLogin)}
+              type="button"
+              onClick={() => setIsLogin((prev) => !prev)}
               disabled={isLoading}
               className="text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
             >

@@ -317,6 +317,7 @@ export default function LinkSyncApp() {
                   <Button
                     variant="ghost"
                     className="relative h-10 w-10 rounded-full"
+                    aria-label="User account menu"
                   >
                     <Avatar className="h-10 w-10 border border-zinc-200 dark:border-zinc-800">
                       {/* <AvatarImage
@@ -373,8 +374,8 @@ export default function LinkSyncApp() {
                     className="cursor-pointer"
                   >
                     <div className="mr-2 relative flex h-4 w-4 items-center justify-center">
-                      <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                      <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                      <Sun className="h-4 w-4 rotate-0 scale-100 transition dark:-rotate-90 dark:scale-0" />
+                      <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition dark:rotate-0 dark:scale-100" />
                     </div>
                     <span>Toggle Theme</span>
                   </DropdownMenuItem>
@@ -402,18 +403,19 @@ export default function LinkSyncApp() {
             className="flex items-end gap-2 bg-white dark:bg-zinc-900 p-2 rounded-2xl border shadow-lg shadow-zinc-200/50 dark:shadow-black/50 ring-1 ring-zinc-900/5"
           >
             <Input
-              placeholder="Paste a link or type a message..."
+              name="message"
+              placeholder="Paste a link or type a message…"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               className="border-0 shadow-none focus-visible:ring-0 flex-1 h-12 text-base bg-transparent p-3"
               disabled={isLoading}
-              autoFocus
               autoComplete="off"
             />
             <Button
               type="submit"
               disabled={!inputValue.trim() || isLoading}
               className="h-12 w-12 rounded-xl shrink-0"
+              aria-label="Send message"
             >
               <Send className="h-5 w-5" />
             </Button>
